@@ -113,9 +113,11 @@ function MainApp({ user }) {
     const filtered = transactions.filter(t => monthKey(t.date) === mk);
     const income = filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const expenseTx = filtered.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-    const budgetPaid = budgets.filter(b => b.paid && monthKey(b.date || today()) === mk).reduce((s, b) => s + b.amount, 0);
+    const budgetPaid = budgets.filter(b => b.paid).reduce((s, b) => s + b.amount, 0);
+    const budgetPending = budgets.filter(b => !b.paid).reduce((s, b) => s + b.amount, 0);
     const totalExpense = expenseTx + budgetPaid;
-    return { income, expense: totalExpense, expenseTx, budgetPaid, balance: income - totalExpense, filtered };
+    const forecast = income - totalExpense - budgetPending;
+    return { income, expense: totalExpense, expenseTx, budgetPaid, budgetPending, balance: income - totalExpense, forecast, filtered };
   };
 
   async function sendMessage() {
@@ -197,7 +199,7 @@ Detecte automaticamente a categoria pelo contexto.`;
     setLoading(false);
   }
 
-  const { income, expense, balance, filtered } = summary();
+  const { income, expense, balance, forecast, filtered } = summary();
 
   return (
     <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "'Inter', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
@@ -221,7 +223,7 @@ Detecte automaticamente a categoria pelo contexto.`;
           <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Saldo disponível</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: balance >= 0 ? COLORS.emerald : COLORS.coral, letterSpacing: "-0.5px" }}>{formatBRL(balance)}</div>
         </div>
-        <div style={{ display: "flex", gap: 16 }}>
+        <div style={{ display: "flex", gap: 12 }}>
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 10, color: COLORS.emerald }}>↑ Entradas</div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{formatBRL(income)}</div>
@@ -229,6 +231,10 @@ Detecte automaticamente a categoria pelo contexto.`;
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 10, color: COLORS.coral }}>↓ Saídas</div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>{formatBRL(expense)}</div>
+          </div>
+          <div style={{ textAlign: "right", borderLeft: `1px solid ${COLORS.cardBorder}`, paddingLeft: 12 }}>
+            <div style={{ fontSize: 10, color: COLORS.amber }}>📊 Previsão</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: forecast >= 0 ? COLORS.amber : COLORS.coral }}>{formatBRL(forecast)}</div>
           </div>
         </div>
       </div>
