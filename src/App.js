@@ -233,8 +233,8 @@ Detecte automaticamente a categoria pelo contexto.`;
             <div style={{ fontSize: 13, fontWeight: 600 }}>{formatBRL(expense)}</div>
           </div>
           <div style={{ textAlign: "right", borderLeft: `1px solid ${COLORS.cardBorder}`, paddingLeft: 12 }}>
-            <div style={{ fontSize: 10, color: COLORS.amber }}>📊 Previsão</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: forecast >= 0 ? COLORS.amber : COLORS.coral }}>{formatBRL(forecast)}</div>
+            <div style={{ fontSize: 10, color: COLORS.amber }}>⏳ Prev. saídas</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.amber }}>{formatBRL(summary().budgetPending)}</div>
           </div>
         </div>
       </div>
