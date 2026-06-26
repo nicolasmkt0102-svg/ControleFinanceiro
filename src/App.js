@@ -43,10 +43,15 @@ function save(key, value) {
 }
 
 async function callClaude(messages, systemPrompt) {
-  const res = await fetch("/api/chat", {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, system: systemPrompt }),
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": process.env.REACT_APP_ANTHROPIC_KEY || "",
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-calls": "true",
+    },
+    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system: systemPrompt, messages }),
   });
   const data = await res.json();
   return data.content?.map(b => b.text || "").join("") || "";
