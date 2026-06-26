@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { useUser, SignIn, SignUp, UserButton, useClerk } from "@clerk/clerk-react";
+import { useUser, SignIn, SignUp, UserButton } from "@clerk/clerk-react";
+import { ptBR } from "@clerk/localizations";
 
 const COLORS = {
   bg: "#0F1117", card: "#1A1D27", cardBorder: "#252836",
