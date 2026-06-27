@@ -173,8 +173,9 @@ function MainApp({ user, trialDaysLeft }) {
     const filtered = transactions.filter(t=>monthKey(t.date)===selectedMonth);
     const income = filtered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
     const expenseTx = filtered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
-    const budgetPaid = budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0);
-    const budgetPending = budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
+    const isCurrentMonth = selectedMonth === monthKey(today());
+    const budgetPaid = isCurrentMonth ? budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0) : 0;
+    const budgetPending = isCurrentMonth ? budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0) : 0;
     const expense = expenseTx+budgetPaid;
     return { income, expense, budgetPending, balance:income-expense, filtered };
   };
