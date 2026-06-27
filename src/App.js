@@ -153,11 +153,22 @@ export default function App() {
 function MainApp({ user, trialDaysLeft }) {
   const uid = user.id;
   const [tab, setTab] = useState("chat");
-  const [transactions, setTransactions] = useState(()=>load(`ca_tx_${uid}`,[]));
-  const [budgets, setBudgets] = useState(()=>load(`ca_bg_${uid}`,[]));
+  // Lê dados no formato novo (ca_) e também no formato antigo (cf_) para não perder dados
+  const [transactions, setTransactions] = useState(()=>{
+    const novo = load(`ca_tx_${uid}`,[]);
+    const antigo = load(`cf_tx_${uid}`,[]);
+    return novo.length > 0 ? novo : antigo;
+  });
+  const [budgets, setBudgets] = useState(()=>{
+    const novo = load(`ca_bg_${uid}`,[]);
+    const antigo = load(`cf_bg_${uid}`,[]);
+    return novo.length > 0 ? novo : antigo;
+  });
   const [messages, setMessages] = useState(()=>{
-    const s = load(`ca_msg_${uid}`,[]);
-    return s.length>0?s:[{role:"assistant",text:`Olá${user.firstName?", "+user.firstName:""}! 👋 Bem-vindo ao **CashAI**.\n\nLance assim:\n• _"recebi 3200 de salário"_\n• _"gastei 45 no mercado"_\n• _"paguei 89 de Netflix"_\n• _"quanto falta no mês?"_\n\nO que vai lançar? 🤖`,ts:Date.now()}];
+    const novo = load(`ca_msg_${uid}`,[]);
+    const antigo = load(`cf_msg_${uid}`,[]);
+    const saved = novo.length > 0 ? novo : antigo;
+    return saved.length>0?saved:[{role:"assistant",text:`Olá${user.firstName?", "+user.firstName:""}! 👋 Bem-vindo ao **CashAI**.\n\nLance assim:\n• _"recebi 3200 de salário"_\n• _"gastei 45 no mercado"_\n• _"paguei 89 de Netflix"_\n• _"quanto falta no mês?"_\n\nO que vai lançar? 🤖`,ts:Date.now()}];
   });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -178,16 +189,16 @@ function MainApp({ user, trialDaysLeft }) {
 
   const summary = () => {
     const currentMonth = monthKey(today());
-    // Topo sempre = mês atual real
-    const currentFiltered = transactions.filter(t=>monthKey(t.date)===currentMonth);
+    // Topo SEMPRE = apenas mês atual real do dispositivo
+    const currentFiltered = transactions.filter(t => monthKey(t.date) === currentMonth);
     const income = currentFiltered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
     const expenseTx = currentFiltered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
     const budgetPaid = budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0);
     const budgetPending = budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
     const expense = expenseTx + budgetPaid;
     const balance = income - expense;
-    // filtered = mês selecionado no extrato
-    const filtered = transactions.filter(t=>monthKey(t.date)===selectedMonth);
+    // filtered = mês selecionado no extrato (pode ser outro mês)
+    const filtered = transactions.filter(t => monthKey(t.date) === selectedMonth);
     return { income, expense, budgetPending, balance, filtered };
   };
 
@@ -203,17 +214,35 @@ function MainApp({ user, trialDaysLeft }) {
     const {income,expense,balance,budgetPending} = summary();
     const budgetInfo = budgets.map(b=>`${b.description}: R$${b.amount} (${b.paid?"✅ pago":"⏳ pendente"})`).join(", ");
 
-    const system = `Você é o assistente do CashAI. Responda SEMPRE em português, amigável e conciso (2-4 linhas). Use emojis com moderação.
+    const system = `Você é o assistente do CashAI. Responda SEMPRE em português, amigável e conciso. Use emojis com moderação.
 
-FINANCEIRO ATUAL (${selectedMonth}):
+DATA DE HOJE: ${today()}
+MÊS ATUAL: ${monthKey(today())}
+
+FINANCEIRO ATUAL (mês de ${monthKey(today())}):
 - Receitas: ${fmt(income)} | Saídas: ${fmt(expense)} | Saldo: ${fmt(balance)}
 - Pendentes orçamento: ${fmt(budgetPending)}
 - Orçamento: ${budgetInfo||"nenhum"}
-- Transações: ${JSON.stringify(transactions.slice(-15))}
+- Transações recentes: ${JSON.stringify(transactions.slice(-15))}
+
+REGRAS DE DATA — MUITO IMPORTANTE:
+1. Se o usuário mencionar "hoje" → use ${today()}
+2. Se o usuário mencionar "ontem" → calcule a data de ontem
+3. Se o usuário mencionar um dia específico (ex: "dia 15", "no dia 20") → use esse dia no mês atual (${monthKey(today())})
+4. Se o usuário NÃO mencionar nenhuma data → action deve ser "ask_date" para perguntar a data antes de lançar
+5. NUNCA invente uma data. NUNCA use datas de meses anteriores sem o usuário pedir.
 
 Retorne APENAS JSON puro (sem texto fora, sem markdown):
-{"action":"add_transaction","transaction":{"description":"desc","amount":0,"type":"income","category":"receita","date":"YYYY-MM-DD","recurring":false},"reply":"texto amigável"}
-Para consultas: {"action":"chat","transaction":null,"reply":"texto"}
+
+Para lançamento COM data clara:
+{"action":"add_transaction","transaction":{"description":"desc","amount":0,"type":"income","category":"receita","date":"YYYY-MM-DD","recurring":false},"reply":"texto confirmando o lançamento com data"}
+
+Para lançamento SEM data mencionada:
+{"action":"ask_date","transaction":null,"reply":"pergunta curta pedindo a data do lançamento"}
+
+Para consultas:
+{"action":"chat","transaction":null,"reply":"resposta"}
+
 CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, receita, outros`;
 
     const apiMsgs = newMsgs.slice(-10).map(m=>({role:m.role==="assistant"?"assistant":"user",content:m.text}));
