@@ -177,14 +177,18 @@ function MainApp({ user, trialDaysLeft }) {
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
   const summary = () => {
+    const currentMonth = monthKey(today());
+    // Topo sempre = mês atual real
+    const currentFiltered = transactions.filter(t=>monthKey(t.date)===currentMonth);
+    const income = currentFiltered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+    const expenseTx = currentFiltered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+    const budgetPaid = budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0);
+    const budgetPending = budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
+    const expense = expenseTx + budgetPaid;
+    const balance = income - expense;
+    // filtered = mês selecionado no extrato
     const filtered = transactions.filter(t=>monthKey(t.date)===selectedMonth);
-    const income = filtered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
-    const expenseTx = filtered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
-    const isCurrentMonth = selectedMonth === monthKey(today());
-    const budgetPaid = isCurrentMonth ? budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0) : 0;
-    const budgetPending = isCurrentMonth ? budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0) : 0;
-    const expense = expenseTx+budgetPaid;
-    return { income, expense, budgetPending, balance:income-expense, filtered };
+    return { income, expense, budgetPending, balance, filtered };
   };
 
   async function sendMessage() {
@@ -376,10 +380,8 @@ function DashboardView({ transactions, setTransactions, selectedMonth, setSelect
   const [form, setForm] = useState({description:"",amount:"",type:"expense",category:"alimentacao",date:today(),recurring:false});
 
   const months = [...new Set(transactions.map(t=>monthKey(t.date)))].sort().reverse();
-  if (!months.includes(selectedMonth) && transactions.length > 0) {
-  } else if (!months.includes(selectedMonth)) {
-    months.unshift(selectedMonth);
-  }
+
+  // Se não tem lançamentos, não mostra seletor de mês
 
   // Aplica filtro de data se definido
   const filteredByDate = (dateFrom || dateTo)
@@ -410,8 +412,17 @@ function DashboardView({ transactions, setTransactions, selectedMonth, setSelect
     <div style={{ flex:1, overflowY:"auto", padding:14, display:"flex", flexDirection:"column", gap:14, WebkitOverflowScrolling:"touch" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
         <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", flexShrink:1 }}>
-          {months.slice(0,6).map(m=>{const[y,mo]=m.split("-");return(
-            <button key={m} onClick={()=>{setSelectedMonth(m);clearFilter();}} style={{ background:selectedMonth===m?C.gold:C.card, color:selectedMonth===m?"#000":C.textMuted, border:`1px solid ${selectedMonth===m?C.gold:C.cardBorder}`, borderRadius:20, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:selectedMonth===m?700:400, whiteSpace:"nowrap", flexShrink:0 }}>{MONTHS[parseInt(mo)-1]}/{y.slice(2)}</button>
+          {months.length === 0 ? (
+            <span style={{ fontSize:12, color:C.textMuted, padding:"6px 0" }}>Nenhum lançamento ainda</span>
+          ) : months.slice(0,6).map(m=>{const[y,mo]=m.split("-"); return(
+            <div key={m} style={{ display:"flex", alignItems:"center", background:selectedMonth===m?C.gold:C.card, border:`1px solid ${selectedMonth===m?C.gold:C.cardBorder}`, borderRadius:20, overflow:"hidden", flexShrink:0 }}>
+              <button onClick={()=>setSelectedMonth(m)} style={{ background:"transparent", border:"none", padding:"6px 10px", fontSize:12, cursor:"pointer", color:selectedMonth===m?"#000":C.textMuted, fontWeight:selectedMonth===m?700:400, whiteSpace:"nowrap" }}>{MONTHS[parseInt(mo)-1]}/{y.slice(2)}</button>
+              {months.length > 1 && <button onClick={()=>{
+                const newTxs = transactions.filter(t=>monthKey(t.date)!==m);
+                setTransactions(newTxs);
+                if (selectedMonth===m) setSelectedMonth(months.filter(x=>x!==m)[0]||monthKey(today()));
+              }} style={{ background:"transparent", border:"none", borderLeft:`1px solid ${selectedMonth===m?"#00000022":C.cardBorder}`, padding:"6px 7px", cursor:"pointer", color:selectedMonth===m?"#000":C.textMuted, fontSize:12, lineHeight:1 }}>×</button>}
+            </div>
           );})}
         </div>
         <button onClick={()=>setShowAdd(true)} style={{ background:C.gold, color:"#000", border:"none", borderRadius:20, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>+ Lançar</button>
