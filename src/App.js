@@ -64,6 +64,72 @@ function AuthScreen() {
   );
 }
 
+// ── Trial check ───────────────────────────────────────────────────
+const TRIAL_DAYS = 7;
+
+function getTrialStatus(user) {
+  const meta = user.publicMetadata || {};
+  // Admin pode definir trial_end ou status no Clerk
+  if (meta.status === "active") return { status: "active", daysLeft: null };
+  if (meta.status === "blocked") return { status: "blocked", daysLeft: 0 };
+
+  // Data de término do trial definida pelo admin no Clerk
+  if (meta.trial_end) {
+    const end = new Date(meta.trial_end);
+    const now = new Date();
+    const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+    if (daysLeft <= 0) return { status: "expired", daysLeft: 0 };
+    return { status: "trial", daysLeft };
+  }
+
+  // Se não tem metadata, usa data de criação da conta
+  const created = new Date(user.createdAt);
+  const now = new Date();
+  const daysUsed = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+  const daysLeft = TRIAL_DAYS - daysUsed;
+
+  if (daysLeft <= 0) return { status: "expired", daysLeft: 0 };
+  return { status: "trial", daysLeft };
+}
+
+function BlockedScreen({ user, status }) {
+  const isExpired = status === "expired";
+  return (
+    <div style={{ minHeight:"100vh", minHeight:"100dvh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", textAlign:"center" }}>
+      <div style={{ fontSize:52, marginBottom:16 }}>{isExpired ? "⏰" : "🔒"}</div>
+      <div style={{ fontSize:22, fontWeight:800, color:C.gold, marginBottom:8 }}>CashAI</div>
+      <div style={{ fontSize:17, fontWeight:700, color:C.text, marginBottom:10 }}>
+        {isExpired ? "Seu período gratuito encerrou" : "Acesso bloqueado"}
+      </div>
+      <div style={{ fontSize:14, color:C.textMuted, maxWidth:300, lineHeight:1.6, marginBottom:32 }}>
+        {isExpired
+          ? "Seus 7 dias de teste gratuito terminaram. Assine agora para continuar organizando suas finanças com IA."
+          : "Seu acesso foi suspenso. Entre em contato para mais informações."}
+      </div>
+
+      {isExpired && (
+        <div style={{ width:"100%", maxWidth:320, display:"flex", flexDirection:"column", gap:10, marginBottom:28 }}>
+          {[
+            ["Mensal", "R$29,90/mês", "#"],
+            ["Trimestral", "R$74,90/trim.", "#"],
+            ["Semestral", "R$129,90/sem.", "#"],
+            ["Anual", "R$197,90/ano 🔥", "#"],
+          ].map(([label, price, link]) => (
+            <a key={label} href={link} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", background:label==="Anual"?C.goldDim:C.card, border:`1px solid ${label==="Anual"?C.gold:C.cardBorder}`, borderRadius:12, padding:"13px 16px", textDecoration:"none", transition:"all .15s" }}>
+              <span style={{ fontSize:14, fontWeight:600, color:label==="Anual"?C.gold:C.text }}>{label}</span>
+              <span style={{ fontSize:14, fontWeight:700, color:label==="Anual"?C.gold:C.textMuted }}>{price}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      <div style={{ fontSize:12, color:C.textMuted }}>
+        Dúvidas? Fale conosco pelo WhatsApp
+      </div>
+    </div>
+  );
+}
+
 // ── Root ──────────────────────────────────────────────────────────
 export default function App() {
   const { isSignedIn, user, isLoaded } = useUser();
@@ -74,11 +140,17 @@ export default function App() {
     </div>
   );
   if (!isSignedIn) return <AuthScreen/>;
-  return <MainApp user={user}/>;
+
+  const trial = getTrialStatus(user);
+  if (trial.status === "expired" || trial.status === "blocked") {
+    return <BlockedScreen user={user} status={trial.status}/>;
+  }
+
+  return <MainApp user={user} trialDaysLeft={trial.daysLeft}/>;
 }
 
 // ── Main ──────────────────────────────────────────────────────────
-function MainApp({ user }) {
+function MainApp({ user, trialDaysLeft }) {
   const uid = user.id;
   const [tab, setTab] = useState("chat");
   const [transactions, setTransactions] = useState(()=>load(`ca_tx_${uid}`,[]));
@@ -187,6 +259,16 @@ CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, 
           <div style={{ marginLeft:8 }}><UserButton appearance={{elements:{avatarBox:{width:28,height:28}}}}/></div>
         </div>
       </div>
+
+      {/* Trial banner */}
+      {trialDaysLeft !== null && (
+        <div style={{ background: trialDaysLeft<=2?"#2A0A00":"#1A1200", borderBottom:`1px solid ${trialDaysLeft<=2?C.coral+"44":C.goldMid}`, padding:"7px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+          <span style={{ fontSize:12, color:trialDaysLeft<=2?C.coral:C.amber }}>
+            {trialDaysLeft<=2?"⚠️":"⏳"} {trialDaysLeft===1?"Último dia de teste gratuito!":`${trialDaysLeft} dias restantes no período gratuito`}
+          </span>
+          <span style={{ fontSize:11, color:C.textMuted }}>Assine para continuar</span>
+        </div>
+      )}
 
       {/* Saldo bar */}
       <div style={{ background:"linear-gradient(135deg, #1C1500 0%, #0F1117 100%)", borderBottom:`1px solid ${C.cardBorder}`, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
