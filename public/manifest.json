@@ -1,8 +1,12 @@
 {
-  "short_name": "Controle $",
-  "name": "Controle Financeiro",
-  "start_url": ".",
+  "short_name": "CashAI",
+  "name": "CashAI - Assistente Financeiro",
+  "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#0F1117",
-  "background_color": "#0F1117"
+  "background_color": "#0F1117",
+  "icons": [
+    { "src": "favicon.ico", "sizes": "64x64", "type": "image/x-icon" }
+  ]
 }
