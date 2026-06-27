@@ -2,390 +2,382 @@ import { useState, useEffect, useRef } from "react";
 import { useUser, SignIn, SignUp, UserButton } from "@clerk/clerk-react";
 import { ptBR } from "@clerk/localizations";
 
-const COLORS = {
-  bg: "#0F1117", card: "#1A1D27", cardBorder: "#252836",
-  emerald: "#00C896", emeraldDim: "#00C89622",
+const C = {
+  bg: "#0F1117", card: "#1A1D27", cardBorder: "#2A2510",
+  gold: "#F0B429", goldDim: "#F0B42918", goldMid: "#F0B42933",
   coral: "#FF6B6B", coralDim: "#FF6B6B22",
   amber: "#FFB347", amberDim: "#FFB34722",
   blue: "#4B9EFF", blueDim: "#4B9EFF22",
   text: "#E8EAF0", textMuted: "#6B7280", textDim: "#9CA3AF",
-  inputBg: "#12141C", userBubble: "#1E3A2F", aiBubble: "#1A1D27",
+  inputBg: "#12141C", userBubble: "#1C1500", aiBubble: "#1A1D27",
 };
 
 const CATEGORIES = {
-  alimentacao: { label: "Alimentação", emoji: "🍽️", color: COLORS.amber },
-  transporte: { label: "Transporte", emoji: "🚗", color: COLORS.blue },
-  moradia: { label: "Moradia", emoji: "🏠", color: COLORS.coral },
-  saude: { label: "Saúde", emoji: "💊", color: "#A78BFA" },
-  lazer: { label: "Lazer", emoji: "🎉", color: "#F472B6" },
-  assinatura: { label: "Assinaturas", emoji: "📱", color: COLORS.blue },
-  cartao: { label: "Cartão de Crédito", emoji: "💳", color: COLORS.coral },
-  receita: { label: "Receita", emoji: "💰", color: COLORS.emerald },
-  outros: { label: "Outros", emoji: "📦", color: COLORS.textMuted },
+  alimentacao: { label: "Alimentação", emoji: "🍽️", color: C.amber },
+  transporte:  { label: "Transporte",  emoji: "🚗", color: C.blue },
+  moradia:     { label: "Moradia",     emoji: "🏠", color: C.coral },
+  saude:       { label: "Saúde",       emoji: "💊", color: "#A78BFA" },
+  lazer:       { label: "Lazer",       emoji: "🎉", color: "#F472B6" },
+  assinatura:  { label: "Assinaturas", emoji: "📱", color: C.blue },
+  cartao:      { label: "Cartão",      emoji: "💳", color: C.coral },
+  receita:     { label: "Receita",     emoji: "💰", color: C.gold },
+  outros:      { label: "Outros",      emoji: "📦", color: C.textMuted },
 };
 
 const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
-function formatBRL(n) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(n);
-}
-function today() { return new Date().toISOString().split("T")[0]; }
-function monthKey(dateStr) {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function load(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
-function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-}
+const fmt = n => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n);
+const today = () => new Date().toISOString().split("T")[0];
+const monthKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; };
+const load = (k,f) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):f; } catch{return f;} };
+const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} };
 
-async function callClaude(messages, systemPrompt) {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages, system: systemPrompt }),
-  });
+async function callClaude(messages, system) {
+  const res = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages,system})});
   const data = await res.json();
-  return data.content?.map(b => b.text || "").join("") || "";
+  return data.content?.map(b=>b.text||"").join("")||"";
 }
 
+// ── Auth ──────────────────────────────────────────────────────────
 function AuthScreen() {
   const [mode, setMode] = useState("signin");
+  const clerkAppearance = {
+    variables: { colorPrimary: C.gold, colorBackground: C.card, colorText: C.text, colorInputBackground: C.inputBg, colorInputText: C.text, borderRadius: "10px" },
+    elements: { card: { background: "transparent", boxShadow: "none", border: "none" }, rootBox: { width: "100%" } }
+  };
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ marginBottom: 32, textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 8 }}>🤖</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, letterSpacing: "-0.5px" }}>Controle Financeiro</div>
-        <div style={{ fontSize: 14, color: COLORS.textMuted, marginTop: 4 }}>Gerencie suas finanças com IA</div>
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"20px 16px" }}>
+      <div style={{ marginBottom:28, textAlign:"center" }}>
+        <div style={{ fontSize:52, marginBottom:8 }}>🤖</div>
+        <div style={{ fontSize:28, fontWeight:800, color:C.gold, letterSpacing:"-1px" }}>CashAI</div>
+        <div style={{ fontSize:13, color:C.textMuted, marginTop:4 }}>Seu assistente financeiro com IA</div>
       </div>
-      <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 16, padding: 24, width: "100%", maxWidth: 400 }}>
-        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
-          {[["signin", "Entrar"], ["signup", "Criar conta"]].map(([m, label]) => (
-            <button key={m} onClick={() => setMode(m)} style={{ flex: 1, background: mode===m ? COLORS.emeraldDim : "transparent", color: mode===m ? COLORS.emerald : COLORS.textMuted, border: `1px solid ${mode===m ? COLORS.emerald : COLORS.cardBorder}`, borderRadius: 10, padding: "10px", cursor: "pointer", fontSize: 14, fontWeight: mode===m ? 600 : 400 }}>
-              {label}
-            </button>
+      <div style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:20, padding:24, width:"100%", maxWidth:400 }}>
+        <div style={{ display:"flex", gap:8, marginBottom:24 }}>
+          {[["signin","Entrar"],["signup","Criar conta"]].map(([m,label])=>(
+            <button key={m} onClick={()=>setMode(m)} style={{ flex:1, background:mode===m?C.goldDim:"transparent", color:mode===m?C.gold:C.textMuted, border:`1px solid ${mode===m?C.gold:C.cardBorder}`, borderRadius:10, padding:"10px", cursor:"pointer", fontSize:14, fontWeight:mode===m?700:400, transition:"all .15s" }}>{label}</button>
           ))}
         </div>
-        {mode === "signin"
-          ? <SignIn routing="hash" appearance={{ variables: { colorPrimary: COLORS.emerald, colorBackground: COLORS.card, colorText: COLORS.text, colorInputBackground: COLORS.inputBg, colorInputText: COLORS.text, borderRadius: "10px" }, elements: { card: { background: "transparent", boxShadow: "none", border: "none" }, rootBox: { width: "100%" } } }} />
-          : <SignUp routing="hash" appearance={{ variables: { colorPrimary: COLORS.emerald, colorBackground: COLORS.card, colorText: COLORS.text, colorInputBackground: COLORS.inputBg, colorInputText: COLORS.text, borderRadius: "10px" }, elements: { card: { background: "transparent", boxShadow: "none", border: "none" }, rootBox: { width: "100%" } } }} />
-        }
+        {mode==="signin"?<SignIn routing="hash" appearance={clerkAppearance}/>:<SignUp routing="hash" appearance={clerkAppearance}/>}
       </div>
     </div>
   );
 }
 
+// ── Root ──────────────────────────────────────────────────────────
 export default function App() {
   const { isSignedIn, user, isLoaded } = useUser();
-  if (!isLoaded) return <div style={{ minHeight: "100vh", background: COLORS.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ fontSize: 32 }}>🤖</div></div>;
-  if (!isSignedIn) return <AuthScreen />;
-  return <MainApp user={user} />;
+  if (!isLoaded) return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ fontSize:40, animation:"spin 1s linear infinite" }}>🤖</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+  if (!isSignedIn) return <AuthScreen/>;
+  return <MainApp user={user}/>;
 }
 
+// ── Main ──────────────────────────────────────────────────────────
 function MainApp({ user }) {
   const uid = user.id;
   const [tab, setTab] = useState("chat");
-  const [transactions, setTransactions] = useState(() => load(`cf_tx_${uid}`, []));
-  const [budgets, setBudgets] = useState(() => load(`cf_bg_${uid}`, []));
-  const [messages, setMessages] = useState(() => {
-    const saved = load(`cf_msg_${uid}`, []);
-    return saved.length > 0 ? saved : [{
-      role: "assistant",
-      text: `Olá, ${user.firstName || ""}! 👋 Bem-vindo ao seu **Controle Financeiro**.\n\nPode lançar assim:\n• _"recebi 3200 de salário"_\n• _"gastei 45 no mercado"_\n• _"paguei 89 de Netflix"_\n• _"quanto falta no mês?"_\n\nO que vai lançar? 🤖`,
-      ts: Date.now(),
-    }];
+  const [transactions, setTransactions] = useState(()=>load(`ca_tx_${uid}`,[]));
+  const [budgets, setBudgets] = useState(()=>load(`ca_bg_${uid}`,[]));
+  const [messages, setMessages] = useState(()=>{
+    const s = load(`ca_msg_${uid}`,[]);
+    return s.length>0?s:[{role:"assistant",text:`Olá${user.firstName?", "+user.firstName:""}! 👋 Bem-vindo ao **CashAI**.\n\nLance assim:\n• _"recebi 3200 de salário"_\n• _"gastei 45 no mercado"_\n• _"paguei 89 de Netflix"_\n• _"quanto falta no mês?"_\n\nO que vai lançar? 🤖`,ts:Date.now()}];
   });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(monthKey(today()));
   const chatEndRef = useRef(null);
 
-  useEffect(() => { save(`cf_tx_${uid}`, transactions); }, [transactions, uid]);
-  useEffect(() => { save(`cf_msg_${uid}`, messages.slice(-60)); }, [messages, uid]);
-  useEffect(() => { save(`cf_bg_${uid}`, budgets); }, [budgets, uid]);
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(()=>{save(`ca_tx_${uid}`,transactions);},[transactions,uid]);
+  useEffect(()=>{save(`ca_msg_${uid}`,messages.slice(-60));},[messages,uid]);
+  useEffect(()=>{save(`ca_bg_${uid}`,budgets);},[budgets,uid]);
+  useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
-  // Saldo considera: receitas do chat - despesas do chat - orçamentos pagos
   const summary = () => {
-    const mk = selectedMonth;
-    const filtered = transactions.filter(t => monthKey(t.date) === mk);
-    const income = filtered.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
-    const expenseTx = filtered.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-    const budgetPaid = budgets.filter(b => b.paid).reduce((s, b) => s + b.amount, 0);
-    const budgetPending = budgets.filter(b => !b.paid).reduce((s, b) => s + b.amount, 0);
-    const totalExpense = expenseTx + budgetPaid;
-    const forecast = income - totalExpense - budgetPending;
-    return { income, expense: totalExpense, expenseTx, budgetPaid, budgetPending, balance: income - totalExpense, forecast, filtered };
+    const filtered = transactions.filter(t=>monthKey(t.date)===selectedMonth);
+    const income = filtered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
+    const expenseTx = filtered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+    const budgetPaid = budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0);
+    const budgetPending = budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
+    const expense = expenseTx+budgetPaid;
+    return { income, expense, budgetPending, balance:income-expense, filtered };
   };
 
   async function sendMessage() {
-    if (!input.trim() || loading) return;
+    if (!input.trim()||loading) return;
     const userText = input.trim();
     setInput("");
-    const userMsg = { role: "user", text: userText, ts: Date.now() };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
+    const userMsg = {role:"user",text:userText,ts:Date.now()};
+    const newMsgs = [...messages,userMsg];
+    setMessages(newMsgs);
     setLoading(true);
 
-    const { income, expense, balance } = summary();
-    const budgetSummary = budgets.map(b => `${b.description}: R$${b.amount} (${b.paid ? "✅ pago" : "⏳ pendente"})`).join(", ");
+    const {income,expense,balance,budgetPending} = summary();
+    const budgetInfo = budgets.map(b=>`${b.description}: R$${b.amount} (${b.paid?"✅ pago":"⏳ pendente"})`).join(", ");
 
-    const systemPrompt = `Você é um assistente de Controle Financeiro. Responda SEMPRE em português, de forma amigável e concisa (2-4 linhas). Use emojis com moderação.
+    const system = `Você é o assistente do CashAI. Responda SEMPRE em português, amigável e conciso (2-4 linhas). Use emojis com moderação.
 
-ESTADO FINANCEIRO ATUAL (mês ${selectedMonth}):
-- Receitas: ${formatBRL(income)}
-- Despesas lançadas: ${formatBRL(expense)}
-- Saldo disponível: ${formatBRL(balance)}
-- Orçamento do mês: ${budgetSummary || "nenhum configurado"}
-- Transações recentes: ${JSON.stringify(transactions.slice(-15))}
+FINANCEIRO ATUAL (${selectedMonth}):
+- Receitas: ${fmt(income)} | Saídas: ${fmt(expense)} | Saldo: ${fmt(balance)}
+- Pendentes orçamento: ${fmt(budgetPending)}
+- Orçamento: ${budgetInfo||"nenhum"}
+- Transações: ${JSON.stringify(transactions.slice(-15))}
 
-INSTRUÇÕES IMPORTANTES:
-1. Detecte lançamentos (receitas ou despesas) na mensagem do usuário
-2. Responda APENAS com um JSON válido, sem texto antes ou depois, sem markdown, sem \`\`\`
-3. O campo "reply" deve conter SOMENTE o texto amigável para o usuário, NUNCA código ou JSON
+Retorne APENAS JSON puro (sem texto fora, sem markdown):
+{"action":"add_transaction","transaction":{"description":"desc","amount":0,"type":"income","category":"receita","date":"YYYY-MM-DD","recurring":false},"reply":"texto amigável"}
+Para consultas: {"action":"chat","transaction":null,"reply":"texto"}
+CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, receita, outros`;
 
-FORMATO OBRIGATÓRIO (JSON puro, sem nenhum texto fora dele):
-{"action":"add_transaction","transaction":{"description":"desc","amount":0,"type":"income","category":"receita","date":"YYYY-MM-DD","recurring":false},"reply":"texto amigável aqui"}
-
-Para consultas sem lançamento:
-{"action":"chat","transaction":null,"reply":"texto amigável aqui"}
-
-CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, receita, outros
-Detecte automaticamente a categoria pelo contexto.`;
-
-    const apiMessages = newMessages.slice(-10).map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.text }));
-
+    const apiMsgs = newMsgs.slice(-10).map(m=>({role:m.role==="assistant"?"assistant":"user",content:m.text}));
     try {
-      const raw = await callClaude(apiMessages, systemPrompt);
+      const raw = await callClaude(apiMsgs,system);
       let parsed;
-      try {
-        // Extrai apenas o JSON da resposta, ignorando qualquer texto extra
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { action: "chat", transaction: null, reply: raw };
-      } catch {
-        parsed = { action: "chat", transaction: null, reply: raw };
+      try { const m=raw.match(/\{[\s\S]*\}/); parsed=m?JSON.parse(m[0]):{action:"chat",transaction:null,reply:raw}; }
+      catch { parsed={action:"chat",transaction:null,reply:raw}; }
+      let reply = parsed.reply||"Entendido!";
+      if (reply.includes('"action"')||reply.includes("```")) reply="Lançamento registrado! ✅";
+      if (parsed.action==="add_transaction"&&parsed.transaction?.amount>0) {
+        const tx={id:Date.now(),description:parsed.transaction.description,amount:parsed.transaction.amount,type:parsed.transaction.type,category:parsed.transaction.category||"outros",date:parsed.transaction.date||today(),recurring:parsed.transaction.recurring||false};
+        setTransactions(p=>[tx,...p]);
       }
-
-      // Garante que o reply nunca contenha JSON
-      let reply = parsed.reply || "Entendido!";
-      if (reply.includes('"action"') || reply.includes('```')) {
-        reply = "Lançamento registrado! ✅";
-      }
-
-      if (parsed.action === "add_transaction" && parsed.transaction?.amount > 0) {
-        const newTx = {
-          id: Date.now(),
-          description: parsed.transaction.description,
-          amount: parsed.transaction.amount,
-          type: parsed.transaction.type,
-          category: parsed.transaction.category || "outros",
-          date: parsed.transaction.date || today(),
-          recurring: parsed.transaction.recurring || false,
-        };
-        setTransactions(prev => [newTx, ...prev]);
-      }
-
-      setMessages([...newMessages, {
-        role: "assistant",
-        text: reply,
-        transaction: parsed.action === "add_transaction" ? parsed.transaction : null,
-        ts: Date.now(),
-      }]);
+      setMessages([...newMsgs,{role:"assistant",text:reply,transaction:parsed.action==="add_transaction"?parsed.transaction:null,ts:Date.now()}]);
     } catch {
-      setMessages([...newMessages, { role: "assistant", text: "Ops, tive um problema de conexão. Tenta de novo? 🙏", ts: Date.now() }]);
+      setMessages([...newMsgs,{role:"assistant",text:"Ops, problema de conexão. Tenta de novo? 🙏",ts:Date.now()}]);
     }
     setLoading(false);
   }
 
-  const { income, expense, balance, forecast, filtered } = summary();
+  const {income,expense,budgetPending,balance,filtered} = summary();
+
+  // Nav tabs com labels responsivos
+  const tabs = [["chat","💬","Chat"],["dashboard","📊","Extrato"],["budget","🎯","Orçamento"]];
 
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "'Inter', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
-      {/* Nav */}
-      <div style={{ background: COLORS.card, borderBottom: `1px solid ${COLORS.cardBorder}`, padding: "0 12px", display: "flex", alignItems: "center", position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
-          <span style={{ fontSize: 20 }}>🤖</span>
-          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: "-0.3px" }}>Controle Financeiro</span>
+    <div style={{ minHeight:"100vh", minHeight:"100dvh", background:C.bg, color:C.text, fontFamily:"'Inter',system-ui,sans-serif", display:"flex", flexDirection:"column", WebkitTextSizeAdjust:"100%" }}>
+      <style>{`
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        body{overscroll-behavior:none;}
+        input,button{font-family:inherit;}
+        @keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+        @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+        .msg{animation:fadein .2s ease;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:${C.goldDim};border-radius:2px;}
+        input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+      `}</style>
+
+      {/* Header */}
+      <div style={{ background:C.card, borderBottom:`1px solid ${C.cardBorder}`, padding:"0 12px", display:"flex", alignItems:"center", position:"sticky", top:0, zIndex:10, WebkitBackdropFilter:"blur(10px)" }}>
+        <div style={{ flex:1, display:"flex", alignItems:"center", gap:8, padding:"11px 0" }}>
+          <span style={{ fontSize:20 }}>🤖</span>
+          <span style={{ fontWeight:800, fontSize:16, color:C.gold, letterSpacing:"-0.5px" }}>CashAI</span>
         </div>
-        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-          {[["chat","💬 Chat"],["dashboard","📊 Extrato"],["budget","🎯 Orçamento"]].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{ background: tab===id ? COLORS.emeraldDim : "transparent", color: tab===id ? COLORS.emerald : COLORS.textMuted, border: "none", borderRadius: 8, padding: "7px 10px", cursor: "pointer", fontWeight: tab===id ? 600 : 400, fontSize: 12 }}>{label}</button>
+        <div style={{ display:"flex", gap:1, alignItems:"center" }}>
+          {tabs.map(([id,icon,label])=>(
+            <button key={id} onClick={()=>setTab(id)} style={{ background:tab===id?C.goldDim:"transparent", color:tab===id?C.gold:C.textMuted, border:"none", borderRadius:8, padding:"7px 8px", cursor:"pointer", fontWeight:tab===id?700:400, fontSize:12, display:"flex", alignItems:"center", gap:3, transition:"all .15s", whiteSpace:"nowrap" }}>
+              <span>{icon}</span>
+              <span style={{ display:"inline" }}>{label}</span>
+            </button>
           ))}
-          <div style={{ marginLeft: 6 }}><UserButton appearance={{ elements: { avatarBox: { width: 30, height: 30 } } }} /></div>
+          <div style={{ marginLeft:8 }}><UserButton appearance={{elements:{avatarBox:{width:28,height:28}}}}/></div>
         </div>
       </div>
 
-      {/* Saldo */}
-      <div style={{ background: "linear-gradient(135deg, #0F2818 0%, #0F1117 100%)", borderBottom: `1px solid ${COLORS.cardBorder}`, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {/* Saldo bar */}
+      <div style={{ background:"linear-gradient(135deg, #1C1500 0%, #0F1117 100%)", borderBottom:`1px solid ${C.cardBorder}`, padding:"10px 14px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div>
-          <div style={{ fontSize: 10, color: COLORS.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Saldo disponível</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: balance >= 0 ? COLORS.emerald : COLORS.coral, letterSpacing: "-0.5px" }}>{formatBRL(balance)}</div>
+          <div style={{ fontSize:9, color:C.textMuted, textTransform:"uppercase", letterSpacing:1 }}>Saldo disponível</div>
+          <div style={{ fontSize:20, fontWeight:800, color:balance>=0?C.gold:C.coral, letterSpacing:"-0.5px" }}>{fmt(balance)}</div>
         </div>
-        <div style={{ display: "flex", gap: 12 }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 10, color: COLORS.emerald }}>↑ Entradas</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{formatBRL(income)}</div>
+        <div style={{ display:"flex", gap:10 }}>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:9, color:C.gold }}>↑ Entradas</div>
+            <div style={{ fontSize:12, fontWeight:600 }}>{fmt(income)}</div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 10, color: COLORS.coral }}>↓ Saídas</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{formatBRL(expense)}</div>
+          <div style={{ textAlign:"right" }}>
+            <div style={{ fontSize:9, color:C.coral }}>↓ Saídas</div>
+            <div style={{ fontSize:12, fontWeight:600 }}>{fmt(expense)}</div>
           </div>
-          <div style={{ textAlign: "right", borderLeft: `1px solid ${COLORS.cardBorder}`, paddingLeft: 12 }}>
-            <div style={{ fontSize: 10, color: COLORS.amber }}>⏳ Prev. saídas</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.amber }}>{formatBRL(summary().budgetPending)}</div>
-          </div>
+          {budgetPending>0&&(
+            <div style={{ textAlign:"right", borderLeft:`1px solid ${C.cardBorder}`, paddingLeft:10 }}>
+              <div style={{ fontSize:9, color:C.amber }}>⏳ Previsto</div>
+              <div style={{ fontSize:12, fontWeight:600, color:C.amber }}>{fmt(budgetPending)}</div>
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {tab === "chat"
-          ? <ChatView messages={messages} loading={loading} input={input} setInput={setInput} sendMessage={sendMessage} chatEndRef={chatEndRef} />
-          : tab === "dashboard"
-          ? <DashboardView transactions={transactions} setTransactions={setTransactions} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} filtered={filtered} income={income} expense={expense} balance={balance} />
-          : <BudgetView budgets={budgets} setBudgets={setBudgets} transactions={transactions} selectedMonth={selectedMonth} />}
+      {/* Content */}
+      <div style={{ flex:1, overflow:"hidden", display:"flex", flexDirection:"column" }}>
+        {tab==="chat"?<ChatView messages={messages} loading={loading} input={input} setInput={setInput} sendMessage={sendMessage} chatEndRef={chatEndRef}/>
+        :tab==="dashboard"?<DashboardView transactions={transactions} setTransactions={setTransactions} selectedMonth={selectedMonth} setSelectedMonth={setSelectedMonth} filtered={filtered} income={income} expense={expense} balance={balance}/>
+        :<BudgetView budgets={budgets} setBudgets={setBudgets} selectedMonth={selectedMonth}/>}
       </div>
     </div>
   );
 }
 
-function renderText(text) {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/_(.*?)_/g, '<em>$1</em>')
-    .replace(/\n/g, '<br/>');
+// ── Chat ──────────────────────────────────────────────────────────
+function renderText(t) {
+  return t.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/_(.*?)_/g,"<em>$1</em>").replace(/\n/g,"<br/>");
 }
 
 function ChatView({ messages, loading, input, setInput, sendMessage, chatEndRef }) {
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      <div style={{ flex: 1, overflowY: "auto", padding: "16px", display: "flex", flexDirection: "column", gap: 12 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            {m.role === "assistant" && <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.emeraldDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginRight: 8, flexShrink: 0, marginTop: 2 }}>🤖</div>}
-            <div style={{ maxWidth: "82%", background: m.role === "user" ? COLORS.userBubble : COLORS.aiBubble, border: `1px solid ${m.role === "user" ? "#1a4a30" : COLORS.cardBorder}`, borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", padding: "10px 14px", fontSize: 14, lineHeight: 1.5 }}>
-              {m.transaction && m.transaction.amount > 0 && (
-                <div style={{ background: COLORS.emeraldDim, border: `1px solid ${COLORS.emerald}33`, borderRadius: 8, padding: "6px 10px", marginBottom: 8, fontSize: 12, color: COLORS.emerald }}>
-                  ✅ {m.transaction.type === "income" ? "+" : "-"}{formatBRL(m.transaction.amount)} · {m.transaction.description}
+    <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+        {messages.map((m,i)=>(
+          <div key={i} className="msg" style={{ display:"flex", justifyContent:m.role==="user"?"flex-end":"flex-start" }}>
+            {m.role==="assistant"&&<div style={{ width:26,height:26,borderRadius:"50%",background:C.goldDim,border:`1px solid ${C.goldMid}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,marginRight:7,flexShrink:0,marginTop:2 }}>🤖</div>}
+            <div style={{ maxWidth:"82%", background:m.role==="user"?C.userBubble:C.aiBubble, border:`1px solid ${m.role==="user"?C.goldMid:C.cardBorder}`, borderRadius:m.role==="user"?"18px 18px 4px 18px":"18px 18px 18px 4px", padding:"10px 13px", fontSize:14, lineHeight:1.55 }}>
+              {m.transaction?.amount>0&&(
+                <div style={{ background:m.transaction.type==="income"?C.goldDim:C.coralDim, border:`1px solid ${m.transaction.type==="income"?C.gold+"44":C.coral+"44"}`, borderRadius:7, padding:"5px 9px", marginBottom:7, fontSize:12, color:m.transaction.type==="income"?C.gold:C.coral }}>
+                  {m.transaction.type==="income"?"✅ +":"✅ -"}{fmt(m.transaction.amount)} · {m.transaction.description}
                 </div>
               )}
-              <span dangerouslySetInnerHTML={{ __html: renderText(m.text) }} />
+              <span dangerouslySetInnerHTML={{__html:renderText(m.text)}}/>
             </div>
           </div>
         ))}
-        {loading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: COLORS.emeraldDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🤖</div>
-            <div style={{ background: COLORS.aiBubble, border: `1px solid ${COLORS.cardBorder}`, borderRadius: "18px 18px 18px 4px", padding: "12px 16px" }}>
-              <div style={{ display: "flex", gap: 4 }}>{[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: COLORS.emerald, animation: `bounce 1s infinite ${i*0.15}s`, opacity: 0.7 }} />)}</div>
+        {loading&&(
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <div style={{ width:26,height:26,borderRadius:"50%",background:C.goldDim,border:`1px solid ${C.goldMid}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13 }}>🤖</div>
+            <div style={{ background:C.aiBubble, border:`1px solid ${C.cardBorder}`, borderRadius:"18px 18px 18px 4px", padding:"12px 16px" }}>
+              <div style={{ display:"flex", gap:4 }}>{[0,1,2].map(i=><div key={i} style={{ width:6,height:6,borderRadius:"50%",background:C.gold,animation:`bounce 1s infinite ${i*.15}s`,opacity:.8 }}/>)}</div>
             </div>
           </div>
         )}
-        <div ref={chatEndRef} />
+        <div ref={chatEndRef}/>
       </div>
-      <div style={{ padding: "0 16px 8px", display: "flex", gap: 6, overflowX: "auto" }}>
-        {["Ver extrato","Resumo do mês","Maiores gastos","Quanto falta?","Despesas pendentes"].map(q => (
-          <button key={q} onClick={() => setInput(q)} style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 20, padding: "6px 12px", fontSize: 12, color: COLORS.textDim, cursor: "pointer", whiteSpace: "nowrap" }}>{q}</button>
+
+      {/* Quick actions */}
+      <div style={{ padding:"0 14px 8px", display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+        {["Ver extrato","Resumo do mês","Maiores gastos","Quanto falta?","Pendentes"].map(q=>(
+          <button key={q} onClick={()=>setInput(q)} style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:20, padding:"6px 12px", fontSize:12, color:C.textDim, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0 }}>{q}</button>
         ))}
       </div>
-      <div style={{ padding: "8px 16px 16px", borderTop: `1px solid ${COLORS.cardBorder}`, display: "flex", gap: 10, alignItems: "center" }}>
-        <input placeholder="Gastei 50 no mercado, recebi salário..." value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMessage()} style={{ flex: 1, background: COLORS.inputBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 24, padding: "11px 16px", color: COLORS.text, fontSize: 14, outline: "none" }} />
-        <button onClick={sendMessage} disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: "50%", background: loading || !input.trim() ? COLORS.cardBorder : COLORS.emerald, border: "none", cursor: loading || !input.trim() ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>↑</button>
+
+      {/* Input */}
+      <div style={{ padding:"8px 14px 14px", padding:"8px 14px max(14px, env(safe-area-inset-bottom))", borderTop:`1px solid ${C.cardBorder}`, display:"flex", gap:9, alignItems:"center" }}>
+        <input
+          placeholder="Gastei 50 no mercado, recebi salário..."
+          value={input}
+          onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendMessage()}
+          style={{ flex:1, background:C.inputBg, border:`1px solid ${C.cardBorder}`, borderRadius:24, padding:"11px 16px", color:C.text, fontSize:14, outline:"none", WebkitAppearance:"none" }}
+        />
+        <button onClick={sendMessage} disabled={loading||!input.trim()} style={{ width:42,height:42,borderRadius:"50%",background:loading||!input.trim()?C.cardBorder:C.gold,border:"none",cursor:loading||!input.trim()?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,color:loading||!input.trim()?C.textMuted:"#000",transition:"background .15s" }}>↑</button>
       </div>
-      <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}`}</style>
     </div>
   );
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────
 function DashboardView({ transactions, setTransactions, selectedMonth, setSelectedMonth, filtered, income, expense, balance }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ description: "", amount: "", type: "expense", category: "alimentacao", date: today(), recurring: false });
+  const [form, setForm] = useState({description:"",amount:"",type:"expense",category:"alimentacao",date:today(),recurring:false});
 
-  const months = [...new Set(transactions.map(t => monthKey(t.date)))].sort().reverse();
+  const months = [...new Set(transactions.map(t=>monthKey(t.date)))].sort().reverse();
   if (!months.includes(selectedMonth)) months.unshift(selectedMonth);
 
-  const byCategory = filtered.filter(t => t.type === "expense").reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc; }, {});
-  const topCats = Object.entries(byCategory).sort((a, b) => b[1]-a[1]).slice(0, 5);
-  const fmt = n => formatBRL(n);
+  const byCategory = filtered.filter(t=>t.type==="expense").reduce((acc,t)=>{acc[t.category]=(acc[t.category]||0)+t.amount;return acc;},{});
+  const topCats = Object.entries(byCategory).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
   function addManual() {
-    if (!form.description || !form.amount) return;
-    setTransactions([{ id: Date.now(), ...form, amount: parseFloat(form.amount) }, ...transactions]);
+    if (!form.description||!form.amount) return;
+    setTransactions([{id:Date.now(),...form,amount:parseFloat(form.amount)},...transactions]);
     setShowAdd(false);
-    setForm({ description: "", amount: "", type: "expense", category: "alimentacao", date: today(), recurring: false });
+    setForm({description:"",amount:"",type:"expense",category:"alimentacao",date:today(),recurring:false});
   }
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 6, overflowX: "auto" }}>
-          {months.slice(0, 6).map(m => { const [y, mo] = m.split("-"); return <button key={m} onClick={() => setSelectedMonth(m)} style={{ background: selectedMonth===m ? COLORS.emerald : COLORS.card, color: selectedMonth===m ? "#000" : COLORS.textMuted, border: `1px solid ${selectedMonth===m ? COLORS.emerald : COLORS.cardBorder}`, borderRadius: 20, padding: "6px 14px", fontSize: 12, cursor: "pointer", fontWeight: selectedMonth===m ? 600 : 400, whiteSpace: "nowrap" }}>{MONTHS[parseInt(mo)-1]}/{y.slice(2)}</button>; })}
+    <div style={{ flex:1, overflowY:"auto", padding:14, display:"flex", flexDirection:"column", gap:14, WebkitOverflowScrolling:"touch" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
+        <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", flexShrink:1 }}>
+          {months.slice(0,6).map(m=>{const[y,mo]=m.split("-");return(
+            <button key={m} onClick={()=>setSelectedMonth(m)} style={{ background:selectedMonth===m?C.gold:C.card, color:selectedMonth===m?"#000":C.textMuted, border:`1px solid ${selectedMonth===m?C.gold:C.cardBorder}`, borderRadius:20, padding:"6px 12px", fontSize:12, cursor:"pointer", fontWeight:selectedMonth===m?700:400, whiteSpace:"nowrap", flexShrink:0 }}>{MONTHS[parseInt(mo)-1]}/{y.slice(2)}</button>
+          );})}
         </div>
-        <button onClick={() => setShowAdd(true)} style={{ background: COLORS.emerald, color: "#000", border: "none", borderRadius: 20, padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer", flexShrink: 0, marginLeft: 8 }}>+ Lançar</button>
+        <button onClick={()=>setShowAdd(true)} style={{ background:C.gold, color:"#000", border:"none", borderRadius:20, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0 }}>+ Lançar</button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-        {[["+Entradas",fmt(income),COLORS.emerald,COLORS.emeraldDim],["-Saídas",fmt(expense),COLORS.coral,COLORS.coralDim],["Saldo",fmt(balance),balance>=0?COLORS.emerald:COLORS.coral,balance>=0?COLORS.emeraldDim:COLORS.coralDim]].map(([label,val,c,bg]) => (
-          <div key={label} style={{ background: bg, border: `1px solid ${c}33`, borderRadius: 12, padding: "12px 14px" }}>
-            <div style={{ fontSize: 11, color: c, marginBottom: 4 }}>{label}</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: c }}>{val}</div>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+        {[["+Entradas",fmt(income),C.gold,C.goldDim],["-Saídas",fmt(expense),C.coral,C.coralDim],["Saldo",fmt(balance),balance>=0?C.gold:C.coral,balance>=0?C.goldDim:C.coralDim]].map(([label,val,col,bg])=>(
+          <div key={label} style={{ background:bg, border:`1px solid ${col}33`, borderRadius:12, padding:"10px 12px" }}>
+            <div style={{ fontSize:10, color:col, marginBottom:3 }}>{label}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:col }}>{val}</div>
           </div>
         ))}
       </div>
 
-      {topCats.length > 0 && (
-        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14, padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, color: COLORS.textDim }}>Por categoria</div>
-          {topCats.map(([cat, val]) => { const c = CATEGORIES[cat]||CATEGORIES.outros; const pct = expense>0?(val/expense)*100:0; return (
-            <div key={cat} style={{ marginBottom: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}><span>{c.emoji} {c.label}</span><span style={{ color: COLORS.textMuted }}>{fmt(val)} <span style={{ fontSize: 11 }}>({pct.toFixed(0)}%)</span></span></div>
-              <div style={{ height: 6, background: COLORS.inputBg, borderRadius: 3, overflow: "hidden" }}><div style={{ height: "100%", width: `${pct}%`, background: c.color, borderRadius: 3 }} /></div>
+      {topCats.length>0&&(
+        <div style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:14, padding:14 }}>
+          <div style={{ fontSize:12, fontWeight:600, marginBottom:10, color:C.textDim }}>Por categoria</div>
+          {topCats.map(([cat,val])=>{const c=CATEGORIES[cat]||CATEGORIES.outros;const pct=expense>0?(val/expense)*100:0;return(
+            <div key={cat} style={{ marginBottom:9 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginBottom:3 }}>
+                <span>{c.emoji} {c.label}</span>
+                <span style={{ color:C.textMuted }}>{fmt(val)} <span style={{ fontSize:10 }}>({pct.toFixed(0)}%)</span></span>
+              </div>
+              <div style={{ height:5, background:C.inputBg, borderRadius:3, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${pct}%`, background:c.color, borderRadius:3 }}/>
+              </div>
             </div>
-          ); })}
+          );})}
         </div>
       )}
 
-      <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", borderBottom: `1px solid ${COLORS.cardBorder}`, fontSize: 13, fontWeight: 600, color: COLORS.textDim }}>Lançamentos · {filtered.length}</div>
-        {filtered.length === 0
-          ? <div style={{ padding: 24, textAlign: "center", color: COLORS.textMuted, fontSize: 14 }}>Nenhum lançamento este mês.<br/>Use o chat para lançar.</div>
-          : filtered.map(t => { const c = CATEGORIES[t.category]||CATEGORIES.outros; return (
-            <div key={t.id} style={{ display: "flex", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${COLORS.cardBorder}`, gap: 12 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: t.type==="income"?COLORS.emeraldDim:COLORS.coralDim, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{c.emoji}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.description}</div>
-                <div style={{ fontSize: 12, color: COLORS.textMuted }}>{t.date}{t.recurring?" · 🔄":""}</div>
+      <div style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:14, overflow:"hidden" }}>
+        <div style={{ padding:"12px 14px", borderBottom:`1px solid ${C.cardBorder}`, fontSize:12, fontWeight:600, color:C.textDim }}>Lançamentos · {filtered.length}</div>
+        {filtered.length===0
+          ?<div style={{ padding:24, textAlign:"center", color:C.textMuted, fontSize:13 }}>Nenhum lançamento este mês.<br/>Use o chat para lançar.</div>
+          :filtered.map(t=>{const c=CATEGORIES[t.category]||CATEGORIES.outros;return(
+            <div key={t.id} style={{ display:"flex", alignItems:"center", padding:"11px 14px", borderBottom:`1px solid ${C.cardBorder}`, gap:10 }}>
+              <div style={{ width:34,height:34,borderRadius:9,background:t.type==="income"?C.goldDim:C.coralDim,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0 }}>{c.emoji}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:500, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{t.description}</div>
+                <div style={{ fontSize:11, color:C.textMuted }}>{t.date}{t.recurring?" · 🔄":""}</div>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: t.type==="income"?COLORS.emerald:COLORS.coral, flexShrink: 0 }}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
-              <button onClick={() => setTransactions(transactions.filter(x=>x.id!==t.id))} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, fontSize: 16, padding: 4 }}>×</button>
+              <div style={{ fontSize:14, fontWeight:700, color:t.type==="income"?C.gold:C.coral, flexShrink:0 }}>{t.type==="income"?"+":"-"}{fmt(t.amount)}</div>
+              <button onClick={()=>setTransactions(transactions.filter(x=>x.id!==t.id))} style={{ background:"none",border:"none",cursor:"pointer",color:C.textMuted,fontSize:18,padding:"4px 6px",lineHeight:1 }}>×</button>
             </div>
-          ); })}
+          );})}
       </div>
 
-      {showAdd && (
-        <div style={{ position: "fixed", inset: 0, background: "#000A", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 }} onClick={() => setShowAdd(false)}>
-          <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: "20px 20px 0 0", padding: 20, width: "100%", maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 16 }}>Novo lançamento</div>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {["expense","income"].map(t => <button key={t} onClick={() => setForm(f=>({...f,type:t}))} style={{ flex: 1, background: form.type===t?(t==="income"?COLORS.emeraldDim:COLORS.coralDim):COLORS.inputBg, border: `1px solid ${form.type===t?(t==="income"?COLORS.emerald:COLORS.coral):COLORS.cardBorder}`, borderRadius: 10, padding: "10px", color: form.type===t?(t==="income"?COLORS.emerald:COLORS.coral):COLORS.textMuted, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>{t==="income"?"💰 Entrada":"💸 Saída"}</button>)}
+      {showAdd&&(
+        <div style={{ position:"fixed",inset:0,background:"#000B",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50 }} onClick={()=>setShowAdd(false)}>
+          <div style={{ background:C.card,border:`1px solid ${C.cardBorder}`,borderRadius:"20px 20px 0 0",padding:"20px 16px",paddingBottom:`max(20px, env(safe-area-inset-bottom))`,width:"100%",maxWidth:500 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:14 }}>Novo lançamento</div>
+            <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+              {["expense","income"].map(tp=>(
+                <button key={tp} onClick={()=>setForm(f=>({...f,type:tp}))} style={{ flex:1,background:form.type===tp?(tp==="income"?C.goldDim:C.coralDim):C.inputBg,border:`1px solid ${form.type===tp?(tp==="income"?C.gold:C.coral):C.cardBorder}`,borderRadius:10,padding:"10px",color:form.type===tp?(tp==="income"?C.gold:C.coral):C.textMuted,cursor:"pointer",fontSize:13,fontWeight:600 }}>
+                  {tp==="income"?"💰 Entrada":"💸 Saída"}
+                </button>
+              ))}
             </div>
-            {[["Descrição","text","description","Ex: Mercado, Netflix..."],["Valor (R$)","number","amount","0,00"],["Data","date","date",""]].map(([label,type,key,ph]) => (
-              <div key={key} style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 4 }}>{label}</div>
-                <input type={type} placeholder={ph} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={{ width: "100%", background: COLORS.inputBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 10, padding: "10px 12px", color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            {[["Descrição","text","description","Ex: Mercado, Netflix..."],["Valor (R$)","number","amount","0,00"],["Data","date","date",""]].map(([label,type,key,ph])=>(
+              <div key={key} style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:C.textMuted, marginBottom:3 }}>{label}</div>
+                <input type={type} placeholder={ph} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={{ width:"100%",background:C.inputBg,border:`1px solid ${C.cardBorder}`,borderRadius:10,padding:"10px 12px",color:C.text,fontSize:14,outline:"none",boxSizing:"border-box",WebkitAppearance:"none" }}/>
               </div>
             ))}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6 }}>Categoria</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {Object.entries(CATEGORIES).filter(([k])=>k!=="receita").map(([k,c]) => <button key={k} onClick={()=>setForm(f=>({...f,category:k}))} style={{ background: form.category===k?c.color+"33":COLORS.inputBg, border: `1px solid ${form.category===k?c.color:COLORS.cardBorder}`, borderRadius: 20, padding: "5px 10px", fontSize: 12, color: form.category===k?c.color:COLORS.textMuted, cursor: "pointer" }}>{c.emoji} {c.label}</button>)}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:11, color:C.textMuted, marginBottom:6 }}>Categoria</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {Object.entries(CATEGORIES).filter(([k])=>k!=="receita").map(([k,c])=>(
+                  <button key={k} onClick={()=>setForm(f=>({...f,category:k}))} style={{ background:form.category===k?c.color+"33":C.inputBg,border:`1px solid ${form.category===k?c.color:C.cardBorder}`,borderRadius:20,padding:"5px 10px",fontSize:12,color:form.category===k?c.color:C.textMuted,cursor:"pointer" }}>{c.emoji} {c.label}</button>
+                ))}
               </div>
             </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16, cursor: "pointer", fontSize: 13, color: COLORS.textDim }}>
-              <input type="checkbox" checked={form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))} /> 🔄 Recorrente (assinatura)
+            <label style={{ display:"flex",alignItems:"center",gap:8,marginBottom:14,cursor:"pointer",fontSize:12,color:C.textDim }}>
+              <input type="checkbox" checked={form.recurring} onChange={e=>setForm(f=>({...f,recurring:e.target.checked}))}/> 🔄 Recorrente (assinatura)
             </label>
-            <button onClick={addManual} style={{ width: "100%", background: COLORS.emerald, color: "#000", border: "none", borderRadius: 12, padding: "13px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>Confirmar lançamento</button>
+            <button onClick={addManual} style={{ width:"100%",background:C.gold,color:"#000",border:"none",borderRadius:12,padding:"13px",fontWeight:700,fontSize:15,cursor:"pointer" }}>Confirmar lançamento</button>
           </div>
         </div>
       )}
@@ -393,84 +385,79 @@ function DashboardView({ transactions, setTransactions, selectedMonth, setSelect
   );
 }
 
-function BudgetView({ budgets, setBudgets, transactions, selectedMonth }) {
+// ── Budget ────────────────────────────────────────────────────────
+function BudgetView({ budgets, setBudgets, selectedMonth }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState(null);
-  const [form, setForm] = useState({ description: "", amount: "", category: "alimentacao" });
-  const fmt = n => formatBRL(n);
+  const [form, setForm] = useState({description:"",amount:"",category:"alimentacao"});
 
-  const totalBudgeted = budgets.reduce((s, b) => s + b.amount, 0);
-  const totalPaid = budgets.filter(b => b.paid).reduce((s, b) => s + b.amount, 0);
-  const totalPending = totalBudgeted - totalPaid;
+  const totalBudgeted = budgets.reduce((s,b)=>s+b.amount,0);
+  const totalPaid = budgets.filter(b=>b.paid).reduce((s,b)=>s+b.amount,0);
+  const totalPending = totalBudgeted-totalPaid;
 
-  function togglePaid(id) {
-    setBudgets(budgets.map(b => b.id === id ? { ...b, paid: !b.paid, paidAt: !b.paid ? today() : null } : b));
-  }
-
-  function openAdd() { setForm({ description: "", amount: "", category: "alimentacao" }); setEditId(null); setShowAdd(true); }
-  function openEdit(b) { setForm({ description: b.description, amount: String(b.amount), category: b.category }); setEditId(b.id); setShowAdd(true); }
-  function saveBudget() {
-    if (!form.description || !form.amount) return;
+  const togglePaid = id => setBudgets(budgets.map(b=>b.id===id?{...b,paid:!b.paid,paidAt:!b.paid?today():null}:b));
+  const openAdd = () => { setForm({description:"",amount:"",category:"alimentacao"}); setEditId(null); setShowAdd(true); };
+  const openEdit = b => { setForm({description:b.description,amount:String(b.amount),category:b.category}); setEditId(b.id); setShowAdd(true); };
+  const saveBudget = () => {
+    if (!form.description||!form.amount) return;
     const updated = editId
-      ? budgets.map(b => b.id===editId ? { ...b, ...form, amount: parseFloat(form.amount) } : b)
-      : [...budgets, { id: Date.now(), ...form, amount: parseFloat(form.amount), paid: false, paidAt: null }];
-    setBudgets(updated);
-    setShowAdd(false);
-  }
+      ?budgets.map(b=>b.id===editId?{...b,...form,amount:parseFloat(form.amount)}:b)
+      :[...budgets,{id:Date.now(),...form,amount:parseFloat(form.amount),paid:false,paidAt:null}];
+    setBudgets(updated); setShowAdd(false);
+  };
 
-  const [mo] = (()=>{ const [y,m] = selectedMonth.split("-"); return [MONTHS[parseInt(m)-1], y]; })();
+  const [mo] = (()=>{const[y,m]=selectedMonth.split("-");return[MONTHS[parseInt(m)-1],y];})();
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={{ flex:1, overflowY:"auto", padding:14, display:"flex", flexDirection:"column", gap:14, WebkitOverflowScrolling:"touch" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Orçamento · {mo}</div>
-          <div style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>Despesas previstas do mês</div>
+          <div style={{ fontWeight:700, fontSize:16 }}>Orçamento · {mo}</div>
+          <div style={{ fontSize:11, color:C.textMuted, marginTop:2 }}>Despesas previstas do mês</div>
         </div>
-        <button onClick={openAdd} style={{ background: COLORS.emerald, color: "#000", border: "none", borderRadius: 20, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ Adicionar</button>
+        <button onClick={openAdd} style={{ background:C.gold, color:"#000", border:"none", borderRadius:20, padding:"8px 14px", fontSize:13, fontWeight:700, cursor:"pointer" }}>+ Adicionar</button>
       </div>
 
-      {/* Resumo */}
-      {budgets.length > 0 && (
-        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14, padding: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div><div style={{ fontSize: 10, color: COLORS.textMuted }}>Total previsto</div><div style={{ fontSize: 16, fontWeight: 700 }}>{fmt(totalBudgeted)}</div></div>
-            <div><div style={{ fontSize: 10, color: COLORS.emerald }}>✅ Pago</div><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.emerald }}>{fmt(totalPaid)}</div></div>
-            <div><div style={{ fontSize: 10, color: COLORS.amber }}>⏳ Pendente</div><div style={{ fontSize: 16, fontWeight: 700, color: COLORS.amber }}>{fmt(totalPending)}</div></div>
+      {budgets.length>0&&(
+        <div style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:14, padding:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
+            <div><div style={{ fontSize:9, color:C.textMuted }}>Total previsto</div><div style={{ fontSize:15, fontWeight:700 }}>{fmt(totalBudgeted)}</div></div>
+            <div><div style={{ fontSize:9, color:C.gold }}>✅ Pago</div><div style={{ fontSize:15, fontWeight:700, color:C.gold }}>{fmt(totalPaid)}</div></div>
+            <div><div style={{ fontSize:9, color:C.amber }}>⏳ Pendente</div><div style={{ fontSize:15, fontWeight:700, color:C.amber }}>{fmt(totalPending)}</div></div>
           </div>
-          <div style={{ height: 6, background: COLORS.inputBg, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${totalBudgeted>0?(totalPaid/totalBudgeted)*100:0}%`, background: COLORS.emerald, borderRadius: 3, transition: "width .4s" }} />
+          <div style={{ height:5, background:C.inputBg, borderRadius:3, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:`${totalBudgeted>0?(totalPaid/totalBudgeted)*100:0}%`, background:C.gold, borderRadius:3, transition:"width .4s" }}/>
           </div>
-          <div style={{ fontSize: 11, color: COLORS.textMuted, marginTop: 6 }}>{totalBudgeted>0?((totalPaid/totalBudgeted)*100).toFixed(0):0}% das despesas pagas</div>
+          <div style={{ fontSize:10, color:C.textMuted, marginTop:5 }}>{totalBudgeted>0?((totalPaid/totalBudgeted)*100).toFixed(0):0}% das despesas pagas</div>
         </div>
       )}
 
-      {budgets.length === 0 ? (
-        <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 14, padding: 40, textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 12 }}>🎯</div>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Nenhuma despesa prevista</div>
-          <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>Adicione suas despesas fixas do mês — aluguel, contas, assinaturas...</div>
-          <button onClick={openAdd} style={{ background: COLORS.emerald, color: "#000", border: "none", borderRadius: 20, padding: "10px 20px", fontWeight: 600, cursor: "pointer" }}>+ Adicionar despesa</button>
+      {budgets.length===0?(
+        <div style={{ background:C.card, border:`1px solid ${C.cardBorder}`, borderRadius:14, padding:36, textAlign:"center" }}>
+          <div style={{ fontSize:32, marginBottom:10 }}>🎯</div>
+          <div style={{ fontWeight:600, marginBottom:5 }}>Nenhuma despesa prevista</div>
+          <div style={{ fontSize:12, color:C.textMuted, marginBottom:14 }}>Adicione suas contas fixas do mês — aluguel, luz, assinaturas...</div>
+          <button onClick={openAdd} style={{ background:C.gold,color:"#000",border:"none",borderRadius:20,padding:"10px 20px",fontWeight:700,cursor:"pointer" }}>+ Adicionar despesa</button>
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {budgets.map(b => {
-            const cat = CATEGORIES[b.category] || CATEGORIES.outros;
-            return (
-              <div key={b.id} style={{ background: COLORS.card, border: `1px solid ${b.paid ? COLORS.emerald+"44" : COLORS.cardBorder}`, borderRadius: 14, padding: 14, opacity: b.paid ? 0.85 : 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: cat.color+"22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>{cat.emoji}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, textDecoration: b.paid ? "line-through" : "none", color: b.paid ? COLORS.textMuted : COLORS.text }}>{b.description}</div>
-                    <div style={{ fontSize: 12, color: COLORS.textMuted }}>{cat.label}{b.paid && b.paidAt ? ` · pago em ${b.paidAt}` : ""}</div>
+      ):(
+        <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+          {budgets.map(b=>{
+            const cat=CATEGORIES[b.category]||CATEGORIES.outros;
+            return(
+              <div key={b.id} style={{ background:C.card, border:`1px solid ${b.paid?C.gold+"44":C.cardBorder}`, borderRadius:14, padding:13, opacity:b.paid?.88:1, transition:"all .2s" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+                  <div style={{ width:34,height:34,borderRadius:9,background:cat.color+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0 }}>{cat.emoji}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:13, textDecoration:b.paid?"line-through":"none", color:b.paid?C.textMuted:C.text }}>{b.description}</div>
+                    <div style={{ fontSize:11, color:C.textMuted }}>{cat.label}{b.paid&&b.paidAt?` · pago ${b.paidAt}`:""}</div>
                   </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: b.paid ? COLORS.textMuted : COLORS.coral, flexShrink: 0 }}>{fmt(b.amount)}</div>
-                  <div style={{ display: "flex", gap: 6, marginLeft: 4 }}>
-                    <button onClick={() => togglePaid(b.id)} style={{ background: b.paid ? COLORS.emeraldDim : COLORS.inputBg, border: `1px solid ${b.paid ? COLORS.emerald : COLORS.cardBorder}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: b.paid ? COLORS.emerald : COLORS.textMuted, fontWeight: 600, whiteSpace: "nowrap" }}>
-                      {b.paid ? "✅ Pago" : "⏳ Pendente"}
+                  <div style={{ fontSize:14, fontWeight:700, color:b.paid?C.textMuted:C.coral, flexShrink:0 }}>{fmt(b.amount)}</div>
+                  <div style={{ display:"flex", gap:5, marginLeft:2 }}>
+                    <button onClick={()=>togglePaid(b.id)} style={{ background:b.paid?C.goldDim:C.inputBg, border:`1px solid ${b.paid?C.gold:C.cardBorder}`, borderRadius:8, padding:"5px 9px", cursor:"pointer", fontSize:11, color:b.paid?C.gold:C.textMuted, fontWeight:600, whiteSpace:"nowrap", transition:"all .2s" }}>
+                      {b.paid?"✅ Pago":"⏳ Pagar"}
                     </button>
-                    <button onClick={() => openEdit(b)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: 4 }}>✏️</button>
-                    <button onClick={() => setBudgets(budgets.filter(x => x.id !== b.id))} style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textMuted, fontSize: 16, padding: 4 }}>×</button>
+                    <button onClick={()=>openEdit(b)} style={{ background:"none",border:"none",cursor:"pointer",fontSize:13,padding:"4px 5px" }}>✏️</button>
+                    <button onClick={()=>setBudgets(budgets.filter(x=>x.id!==b.id))} style={{ background:"none",border:"none",cursor:"pointer",color:C.textMuted,fontSize:17,padding:"4px 5px",lineHeight:1 }}>×</button>
                   </div>
                 </div>
               </div>
@@ -479,26 +466,26 @@ function BudgetView({ budgets, setBudgets, transactions, selectedMonth }) {
         </div>
       )}
 
-      {showAdd && (
-        <div style={{ position: "fixed", inset: 0, background: "#000A", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 }} onClick={() => setShowAdd(false)}>
-          <div style={{ background: COLORS.card, border: `1px solid ${COLORS.cardBorder}`, borderRadius: "20px 20px 0 0", padding: 20, width: "100%", maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{editId ? "Editar despesa" : "Nova despesa prevista"}</div>
-            <div style={{ fontSize: 13, color: COLORS.textMuted, marginBottom: 16 }}>Adicione uma despesa fixa ou prevista para o mês</div>
-            {[["Descrição","text","description","Ex: Aluguel, Netflix, Academia..."],["Valor (R$)","number","amount","0,00"]].map(([label,type,key,ph]) => (
-              <div key={key} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 4 }}>{label}</div>
-                <input type={type} placeholder={ph} value={form[key]} onChange={e => setForm(f=>({...f,[key]:e.target.value}))} style={{ width: "100%", background: COLORS.inputBg, border: `1px solid ${COLORS.cardBorder}`, borderRadius: 10, padding: "10px 12px", color: COLORS.text, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+      {showAdd&&(
+        <div style={{ position:"fixed",inset:0,background:"#000B",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50 }} onClick={()=>setShowAdd(false)}>
+          <div style={{ background:C.card,border:`1px solid ${C.cardBorder}`,borderRadius:"20px 20px 0 0",padding:"20px 16px",paddingBottom:`max(20px, env(safe-area-inset-bottom))`,width:"100%",maxWidth:500 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:4 }}>{editId?"Editar despesa":"Nova despesa prevista"}</div>
+            <div style={{ fontSize:12, color:C.textMuted, marginBottom:14 }}>Adicione uma conta fixa ou prevista para o mês</div>
+            {[["Descrição","text","description","Ex: Aluguel, Netflix, Academia..."],["Valor (R$)","number","amount","0,00"]].map(([label,type,key,ph])=>(
+              <div key={key} style={{ marginBottom:10 }}>
+                <div style={{ fontSize:11, color:C.textMuted, marginBottom:3 }}>{label}</div>
+                <input type={type} placeholder={ph} value={form[key]} onChange={e=>setForm(f=>({...f,[key]:e.target.value}))} style={{ width:"100%",background:C.inputBg,border:`1px solid ${C.cardBorder}`,borderRadius:10,padding:"10px 12px",color:C.text,fontSize:14,outline:"none",boxSizing:"border-box",WebkitAppearance:"none" }}/>
               </div>
             ))}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 12, color: COLORS.textMuted, marginBottom: 6 }}>Categoria</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {Object.entries(CATEGORIES).filter(([k]) => k !== "receita").map(([k,c]) => (
-                  <button key={k} onClick={() => setForm(f=>({...f,category:k}))} style={{ background: form.category===k?c.color+"33":COLORS.inputBg, border: `1px solid ${form.category===k?c.color:COLORS.cardBorder}`, borderRadius: 20, padding: "5px 10px", fontSize: 12, color: form.category===k?c.color:COLORS.textMuted, cursor: "pointer" }}>{c.emoji} {c.label}</button>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:11, color:C.textMuted, marginBottom:6 }}>Categoria</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {Object.entries(CATEGORIES).filter(([k])=>k!=="receita").map(([k,c])=>(
+                  <button key={k} onClick={()=>setForm(f=>({...f,category:k}))} style={{ background:form.category===k?c.color+"33":C.inputBg,border:`1px solid ${form.category===k?c.color:C.cardBorder}`,borderRadius:20,padding:"5px 10px",fontSize:12,color:form.category===k?c.color:C.textMuted,cursor:"pointer" }}>{c.emoji} {c.label}</button>
                 ))}
               </div>
             </div>
-            <button onClick={saveBudget} style={{ width: "100%", background: COLORS.emerald, color: "#000", border: "none", borderRadius: 12, padding: "13px", fontWeight: 700, fontSize: 15, cursor: "pointer" }}>{editId ? "Salvar" : "Adicionar despesa"}</button>
+            <button onClick={saveBudget} style={{ width:"100%",background:C.gold,color:"#000",border:"none",borderRadius:12,padding:"13px",fontWeight:700,fontSize:15,cursor:"pointer" }}>{editId?"Salvar":"Adicionar despesa"}</button>
           </div>
         </div>
       )}
