@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useUser, SignIn, SignUp, UserButton } from "@clerk/clerk-react";
 import { ptBR } from "@clerk/localizations";
 
@@ -187,9 +187,8 @@ function MainApp({ user, trialDaysLeft }) {
   useEffect(()=>{save(`ca_bg_${uid}`,budgets);},[budgets,uid]);
   useEffect(()=>{chatEndRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
 
-  const summary = () => {
+  const { income, expense, budgetPending, balance, filtered } = useMemo(() => {
     const currentMonth = monthKey(today());
-    // Topo SEMPRE = apenas mês atual real do dispositivo
     const currentFiltered = transactions.filter(t => monthKey(t.date) === currentMonth);
     const income = currentFiltered.filter(t=>t.type==="income").reduce((s,t)=>s+t.amount,0);
     const expenseTx = currentFiltered.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
@@ -197,10 +196,9 @@ function MainApp({ user, trialDaysLeft }) {
     const budgetPending = budgets.filter(b=>!b.paid).reduce((s,b)=>s+b.amount,0);
     const expense = expenseTx + budgetPaid;
     const balance = income - expense;
-    // filtered = mês selecionado no extrato (pode ser outro mês)
     const filtered = transactions.filter(t => monthKey(t.date) === selectedMonth);
     return { income, expense, budgetPending, balance, filtered };
-  };
+  }, [transactions, budgets, selectedMonth]);
 
   async function sendMessage() {
     if (!input.trim()||loading) return;
@@ -211,7 +209,6 @@ function MainApp({ user, trialDaysLeft }) {
     setMessages(newMsgs);
     setLoading(true);
 
-    const {income,expense,balance,budgetPending} = summary();
     const budgetInfo = budgets.map(b=>`${b.description}: R$${b.amount} (${b.paid?"✅ pago":"⏳ pendente"})`).join(", ");
 
     const system = `Você é o assistente do CashAI. Responda SEMPRE em português, amigável e conciso. Use emojis com moderação.
@@ -264,9 +261,6 @@ CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, 
     setLoading(false);
   }
 
-  const {income,expense,budgetPending,balance,filtered} = summary();
-
-  // Nav tabs com labels responsivos
   const tabs = [["chat","💬","Chat"],["dashboard","📊","Extrato"],["budget","🎯","Orçamento"]];
 
   return (
