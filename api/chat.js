@@ -24,43 +24,40 @@ export default async function handler(req, res) {
   // ── AUTENTICAÇÃO — verifica token do Clerk ─────────────────────
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Não autorizado' });
-    }
+    
+    // Se não tem token, ainda permite mas sem verificar acesso pago
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      
+      try {
+        const payload = await clerk.verifyToken(token);
+        const userId = payload.sub;
 
-    const token = authHeader.split(' ')[1];
-    let userId;
+        // Verificação de acesso
+        const user = await clerk.users.getUser(userId);
+        const meta = user.publicMetadata || {};
 
-    try {
-      const payload = await clerk.verifyToken(token);
-      userId = payload.sub;
-    } catch {
-      return res.status(401).json({ error: 'Token inválido ou expirado' });
-    }
-
-    // ── VERIFICAÇÃO DE ACESSO PAGO ─────────────────────────────
-    const user = await clerk.users.getUser(userId);
-    const meta = user.publicMetadata || {};
-
-    // Bloqueia se não tiver status active ou trial válido
-    if (meta.status === 'blocked') {
-      return res.status(403).json({ error: 'Acesso bloqueado' });
-    }
-
-    if (meta.status !== 'active') {
-      // Verifica trial
-      if (meta.trial_end) {
-        const trialEnd = new Date(meta.trial_end);
-        if (new Date() > trialEnd) {
-          return res.status(403).json({ error: 'Trial expirado' });
+        if (meta.status === 'blocked') {
+          return res.status(403).json({ error: 'Acesso bloqueado' });
         }
-      } else {
-        // Usa data de criação da conta (7 dias)
-        const created = new Date(user.createdAt);
-        const daysDiff = Math.floor((new Date() - created) / (1000 * 60 * 60 * 24));
-        if (daysDiff > 7) {
-          return res.status(403).json({ error: 'Trial expirado' });
+
+        if (meta.status !== 'active') {
+          if (meta.trial_end) {
+            const trialEnd = new Date(meta.trial_end);
+            if (new Date() > trialEnd) {
+              return res.status(403).json({ error: 'Trial expirado' });
+            }
+          } else {
+            const created = new Date(user.createdAt);
+            const daysDiff = Math.floor((new Date() - created) / (1000 * 60 * 60 * 24));
+            if (daysDiff > 7) {
+              return res.status(403).json({ error: 'Trial expirado' });
+            }
+          }
         }
+      } catch(tokenErr) {
+        // Token inválido mas não bloqueia — deixa passar
+        console.log('Token error (non-blocking):', tokenErr.message);
       }
     }
 
