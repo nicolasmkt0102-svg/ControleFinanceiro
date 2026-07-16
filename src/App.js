@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useUser, SignIn, SignUp, UserButton } from "@clerk/clerk-react";
+import { useUser, SignIn, SignUp, UserButton, useAuth } from "@clerk/clerk-react";
 import { ptBR } from "@clerk/localizations";
 
 const C = {
@@ -29,11 +29,47 @@ const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov
 const fmt = n => new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format(n);
 const today = () => new Date().toISOString().split("T")[0];
 const monthKey = d => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}`; };
-const load = (k,f) => { try { const v=localStorage.getItem(k); return v?JSON.parse(v):f; } catch{return f;} };
-const save = (k,v) => { try { localStorage.setItem(k,JSON.stringify(v)); } catch{} };
 
-async function callClaude(messages, system) {
-  const res = await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages,system})});
+// ── Criptografia simples do localStorage ──────────────────────────
+const ENCRYPT_KEY = "ca2026xk";
+function encrypt(str) {
+  try {
+    return btoa(encodeURIComponent(str).split('').map((c,i) =>
+      String.fromCharCode(c.charCodeAt(0) ^ ENCRYPT_KEY.charCodeAt(i % ENCRYPT_KEY.length))
+    ).join(''));
+  } catch { return str; }
+}
+function decrypt(str) {
+  try {
+    return decodeURIComponent(atob(str).split('').map((c,i) =>
+      String.fromCharCode(c.charCodeAt(0) ^ ENCRYPT_KEY.charCodeAt(i % ENCRYPT_KEY.length))
+    ).join(''));
+  } catch { return str; }
+}
+const load = (k,f) => {
+  try {
+    const v = localStorage.getItem(k);
+    if (!v) return f;
+    try { return JSON.parse(decrypt(v)); } catch { return JSON.parse(v); } // retrocompat
+  } catch { return f; }
+};
+const save = (k,v) => {
+  try { localStorage.setItem(k, encrypt(JSON.stringify(v))); } catch {}
+};
+
+// callClaude envia token do Clerk para autenticação no servidor
+async function callClaude(messages, system, token) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({messages, system})
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("unauthorized");
+  }
   const data = await res.json();
   return data.content?.map(b=>b.text||"").join("")||"";
 }
@@ -152,6 +188,7 @@ export default function App() {
 // ── Main ──────────────────────────────────────────────────────────
 function MainApp({ user, trialDaysLeft }) {
   const uid = user.id;
+  const { getToken } = useAuth();
   const [tab, setTab] = useState("chat");
   // Lê dados no formato novo (ca_) e também no formato antigo (cf_) para não perder dados
   const [transactions, setTransactions] = useState(()=>{
@@ -244,7 +281,8 @@ CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, 
 
     const apiMsgs = newMsgs.slice(-10).map(m=>({role:m.role==="assistant"?"assistant":"user",content:m.text}));
     try {
-      const raw = await callClaude(apiMsgs,system);
+      const token = await getToken();
+      const raw = await callClaude(apiMsgs, system, token);
       let parsed;
       try { const m=raw.match(/\{[\s\S]*\}/); parsed=m?JSON.parse(m[0]):{action:"chat",transaction:null,reply:raw}; }
       catch { parsed={action:"chat",transaction:null,reply:raw}; }
@@ -255,8 +293,11 @@ CATEGORIAS: alimentacao, transporte, moradia, saude, lazer, assinatura, cartao, 
         setTransactions(p=>[tx,...p]);
       }
       setMessages([...newMsgs,{role:"assistant",text:reply,transaction:parsed.action==="add_transaction"?parsed.transaction:null,ts:Date.now()}]);
-    } catch {
-      setMessages([...newMsgs,{role:"assistant",text:"Ops, problema de conexão. Tenta de novo? 🙏",ts:Date.now()}]);
+    } catch(e) {
+      const msg = e.message === "unauthorized"
+        ? "Sua sessão expirou. Faça login novamente. 🔒"
+        : "Ops, problema de conexão. Tenta de novo? 🙏";
+      setMessages([...newMsgs,{role:"assistant",text:msg,ts:Date.now()}]);
     }
     setLoading(false);
   }
